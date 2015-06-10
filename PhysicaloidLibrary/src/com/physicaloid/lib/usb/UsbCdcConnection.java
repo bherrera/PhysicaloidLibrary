@@ -32,6 +32,8 @@ public class UsbCdcConnection {
 
     private static final String TAG = UsbCdcConnection.class.getSimpleName();
 
+    public static final int USB_SUBCLASS_ABSTRACT_CONTROL_MODEL = 0x02;
+
     private UsbAccessor mUsbAccess;
 
     private int mCdcAcmInterfaceNum;
@@ -79,15 +81,19 @@ public class UsbCdcConnection {
             if(usbdev.getVendorId() == ids.getVid()) {
                 if(ids.getPid() == 0 || ids.getPid() == usbdev.getProductId()) {
                     for(int intfNum=0; intfNum < usbdev.getInterfaceCount(); intfNum++) {
-
-                        if( (isCdcAcm && (usbdev.getInterface(intfNum).getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA))
+                        UsbInterface usbInterface = usbdev.getInterface(intfNum);
+                        if(isCdcAcm && (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_COMM &&
+                                usbInterface.getInterfaceSubclass() == USB_SUBCLASS_ABSTRACT_CONTROL_MODEL)) {
+                            if(DEBUG_SHOW){ Log.d(TAG, "Found USB CDC ACM Interface, IntfNum:" + intfNum); }
+                            mCdcAcmInterfaceNum = intfNum;
+                        }
+                        else if( (isCdcAcm && (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA))
                                 || !isCdcAcm) {
                             if(ch == chNum) {
                                 if(!mUsbAccess.deviceIsConnected(devNum)) {
                                     if(mUsbAccess.openDevice(devNum,intfNum,ch)) {
                                         if(DEBUG_SHOW){ Log.d(TAG, "Find VID:"+Integer.toHexString(usbdev.getVendorId())+", PID:"+Integer.toHexString(usbdev.getProductId())+", DevNum:"+devNum+", IntfNum:"+intfNum); }
                                         mUsbConnectionEp.put(ch,new UsbCdcConnectionEp(mUsbAccess.connection(ch), getEndpoint(devNum, intfNum, UsbConstants.USB_DIR_IN), getEndpoint(devNum, intfNum, UsbConstants.USB_DIR_OUT)));
-                                        mCdcAcmInterfaceNum = intfNum;
                                         return true;
                                     }
                                 }
